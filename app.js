@@ -13,6 +13,9 @@ app.use(express.json())
 const cors = require('cors')
   app.use(cors())
 
+app.listen(3000, () => {
+  console.log('Servidor rodando na porta 3000');
+});
 
 //  proteger rotas
 function autenticarToken(req, res, next) {
@@ -27,6 +30,8 @@ function autenticarToken(req, res, next) {
     next()
   })
 }
+
+
 
 // Rota para cadastrar usuário
 app.post('/usuarios', async (req, res) => {
