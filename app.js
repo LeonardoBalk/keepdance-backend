@@ -326,3 +326,37 @@ app.get('/links/:id', autenticarToken, async (req, res) => {
     res.status(500).json({ erro: 'Erro interno ao buscar link' });
   }
 });
+
+const { Configuration, OpenAIApi } = require('openai');
+
+const openai = new OpenAIApi(new Configuration({
+  apiKey: process.env.OPENAI_API_KEY
+}));
+
+
+app.post('/chat', autenticarToken, async (req, res) => {
+  const { mensagem } = req.body;
+
+  if (!mensagem) return res.status(400).json({ erro: 'Mensagem não fornecida' });
+
+  try {
+    const resposta = await openai.createChatCompletion({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'system',
+          content: 'Você é um especialista em música eletrônica. Sugira 3 faixas com nome e artista baseadas na mensagem do usuário. Apenas faixas do gênero eletrônico.'
+        },
+        { role: 'user', content: mensagem }
+      ],
+      temperature: 0.7,
+      max_tokens: 150
+    });
+
+    const recomendacoes = resposta.data.choices[0].message.content;
+    res.json({ recomendacoes });
+  } catch (error) {
+    console.error('Erro no chat IA:', error);
+    res.status(500).json({ erro: 'Erro ao gerar resposta da IA' });
+  }
+});
