@@ -7,9 +7,9 @@ require('./googleAuth');
 const session = require('express-session');
 require('dotenv').config();
 
-
 const app = express()
 const prisma = new PrismaClient()
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 
 app.use(express.json())
@@ -230,6 +230,52 @@ app.delete('/favoritos', autenticarToken, async (req, res) => {
   }
 });
 
+// ROTA PARA O CHATBOT DE RECOMENDAÇÃO
+app.post('/chat', async (req, res) => {
+  const { mensagem } = req.body;
+
+  if (!mensagem) {
+    return res.status(400).json({ erro: 'A mensagem é obrigatória.' });
+  }
+
+  try {
+    // Sem buscar links curtidos do usuário (não tem user id)
+    const generosFavoritos = 'Nenhum ainda';
+
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+   const prompt = `
+    You are "KeepDancer", a DJ and electronic music expert inside the KeepDance app.
+    A user is asking for a music recommendation.
+
+    User context:
+    - Genres they’ve enjoyed before: ${generosFavoritos}
+
+    User message: "${mensagem}"
+
+    Your task:
+    1. Reply with a friendly and energetic tone, as if you're a real DJ talking to a fan.
+    2. Recommend between 2 to 4 songs or DJ sets that fit the user's taste.
+    3. **IMPORTANT**: List each recommendation on a separate line, using EXACTLY this format: "Track Name" - Artist Name. Do NOT use bullets, numbers, or extra formatting. Always prioritize the most popular or most streamed tracks.
+    Example output format:
+    "Strobe" - deadmau5  
+    "Opus" - Eric Prydz
+`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    res.json({ recomendacoes: text });
+
+  } catch (error) {
+    console.error("Erro ao comunicar com a IA:", error);
+    res.status(500).json({ erro: 'Ocorreu um erro ao processar sua solicitação.' });
+  }
+});
+
+
 app.delete('/links/:id', autenticarToken, async (req, res) => {
   const { id } = req.params;
 
@@ -324,39 +370,5 @@ app.get('/links/:id', autenticarToken, async (req, res) => {
   } catch (error) {
     console.error('Erro ao buscar link:', error);
     res.status(500).json({ erro: 'Erro interno ao buscar link' });
-  }
-});
-
-const { Configuration, OpenAIApi } = require('openai');
-
-const openai = new OpenAIApi(new Configuration({
-  apiKey: process.env.OPENAI_API_KEY
-}));
-
-
-app.post('/chat', autenticarToken, async (req, res) => {
-  const { mensagem } = req.body;
-
-  if (!mensagem) return res.status(400).json({ erro: 'Mensagem não fornecida' });
-
-  try {
-    const resposta = await openai.createChatCompletion({
-      model: 'gpt-3.5-turbo',
-      messages: [
-        {
-          role: 'system',
-          content: 'Você é um especialista em música eletrônica. Sugira 3 faixas com nome e artista baseadas na mensagem do usuário. Apenas faixas do gênero eletrônico.'
-        },
-        { role: 'user', content: mensagem }
-      ],
-      temperature: 0.7,
-      max_tokens: 150
-    });
-
-    const recomendacoes = resposta.data.choices[0].message.content;
-    res.json({ recomendacoes });
-  } catch (error) {
-    console.error('Erro no chat IA:', error);
-    res.status(500).json({ erro: 'Erro ao gerar resposta da IA' });
   }
 });
