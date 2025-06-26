@@ -99,7 +99,7 @@ app.get('/auth/google/callback',
       { expiresIn: '1h' }
     );
     // Redireciona para o frontend passando o token na URL
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?token=${token}`);
+    res.redirect(`${process.env.FRONTEND_URL || 'https://keepdance.netlify.app/'}/login?token=${token}`);
   }
 );
 
